@@ -2,8 +2,8 @@
 # Azure Configuration
 # ---------------------------
 resource "azurerm_resource_group" "rg" {
-  name     = "rg-vnet-gateway-demo"
-  location = "East US"
+  name     = "azure-vpn"
+  location = "Central INDIA"
 }
 
 resource "azurerm_virtual_network" "vnet" {
@@ -21,17 +21,17 @@ resource "azurerm_subnet" "gateway_subnet" {
 }
 
 resource "azurerm_virtual_network_gateway" "vng" {
-  name                = "vnet-gateway-az"
+  name                = "vnet-gateway"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
 
-  type     = "Vpn"           # VPN Gateway
+  type     = "Vpn"           
   vpn_type = "RouteBased"
-  sku      = "VpnGw2AZ"      # Zone-redundant SKU
+  sku      = "VpnGw2AZ"      
 
-  active_active = false
-  enable_bgp    = false
-
+  active_active = true
+  enable_bgp    = true
+  
   ip_configuration {
     name                          = "vnetGatewayConfig"
     public_ip_address_id          = azurerm_public_ip.gw_pip.id
@@ -43,3 +43,7 @@ resource "azurerm_virtual_network_gateway" "vng" {
   }
   
 }
+
+# ---------------------------
+# GCP Configuration
+# ---------------------------
