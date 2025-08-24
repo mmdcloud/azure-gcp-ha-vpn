@@ -26,3 +26,10 @@ variable "gcp_private_subnets" {
   type    = list(string)
   default = ["10.2.4.0/24", "10.2.5.0/24", "10.2.6.0/24"]
 }
+
+variable "gcp_project_id" {
+  type        = string
+  description = "GCP Project ID"
+  default     = "encoded-alpha-457108-e8"
+  # Remove default for production - must be explicitly set
+}

@@ -82,7 +82,7 @@ resource "azurerm_local_network_gateway" "local_gw_1" {
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
 
-  gateway_address = google_compute_ha_vpn_gateway.gcp_vpn_gateway.interfaces[0].ip_address
+  gateway_address = google_compute_ha_vpn_gateway.gcp_vpn_gateway.vpn_interfaces[0].ip_address
 
   bgp_settings {
     asn                 = 65001
@@ -99,7 +99,7 @@ resource "azurerm_local_network_gateway" "local_gw_2" {
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
 
-  gateway_address = google_compute_ha_vpn_gateway.gcp_vpn_gateway.interfaces[1].ip_address
+  gateway_address = google_compute_ha_vpn_gateway.gcp_vpn_gateway.vpn_interfaces[1].ip_address
 
   bgp_settings {
     asn                 = 65001
