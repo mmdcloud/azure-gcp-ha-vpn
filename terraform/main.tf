@@ -28,21 +28,23 @@ resource "azurerm_public_ip" "public_ip_1" {
   name                = "azure-vm-public-ip-1"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
-  allocation_method   = "Dynamic"
+  allocation_method   = "Static"
+  zones = [ "1" ]
 }
 
 resource "azurerm_public_ip" "public_ip_2" {
   name                = "azure-vm-public-ip-2"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
-  allocation_method   = "Dynamic"
+  allocation_method   = "Static"
+  zones = [ "1" ]
 }
 
 resource "azurerm_virtual_network_gateway" "vng" {
   name                = "azure-vpn-gateway"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
-
+  
   type          = "Vpn"
   vpn_type      = "RouteBased"
   sku           = "VpnGw2AZ"
@@ -51,20 +53,20 @@ resource "azurerm_virtual_network_gateway" "vng" {
   enable_bgp    = true
 
   ip_configuration {
-    name                          = "azure-vm-public-ip-1"
+    name                          = "ip-config-1"
     public_ip_address_id          = azurerm_public_ip.public_ip_1.id
     private_ip_address_allocation = "Dynamic"
     subnet_id                     = module.azure_vnet.subnets[1].id
   }
 
   ip_configuration {
-    name                          = "azure-vm-public-ip-2"
+    name                          = "ip-config-2"
     public_ip_address_id          = azurerm_public_ip.public_ip_2.id
     private_ip_address_allocation = "Dynamic"
     subnet_id                     = module.azure_vnet.subnets[1].id
   }
 
-  bgp_settings {
+  bgp_settings {    
     asn = 65515
     dynamic "peering_addresses" {
       for_each = var.bgp_addresses
@@ -270,7 +272,7 @@ resource "azurerm_public_ip" "azure_vm_public_ip" {
   name                = "azure-vm-public-ip"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
-  allocation_method   = "Dynamic"
+  allocation_method   = "Static"
 }
 
 resource "azurerm_network_interface" "azure_vm_nic" {
@@ -291,6 +293,7 @@ resource "azurerm_linux_virtual_machine" "azure_vm" {
   resource_group_name = azurerm_resource_group.rg.name
   location            = azurerm_resource_group.rg.location
   size                = "Standard_B1s"
+  disable_password_authentication = false
   admin_username      = "madmax"
   network_interface_ids = [
     azurerm_network_interface.azure_vm_nic.id,
@@ -321,7 +324,7 @@ module "instance1" {
   source                    = "./modules/gcp/compute"
   name                      = "gcp-instance"
   machine_type              = "e2-micro"
-  zone                      = "us-central1-a"
+  zone                      = "asia-south1-a"
   metadata_startup_script   = "sudo apt-get update; sudo apt-get install nginx -y"
   deletion_protection       = false
   allow_stopping_for_update = true

@@ -4,10 +4,10 @@ variable "bgp_addresses" {
     apipa_addresses       = list(string)
   }))
   default = [{
-    ip_configuration_name = "public-ip-1"
+    ip_configuration_name = "ip-config-1"
     apipa_addresses       = ["169.254.21.10"]
     }, {
-    ip_configuration_name = "public-ip-2"
+    ip_configuration_name = "ip-config-2"
     apipa_addresses       = ["169.254.21.14"]
   }]
 }
