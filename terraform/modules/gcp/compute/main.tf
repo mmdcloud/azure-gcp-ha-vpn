@@ -26,4 +26,5 @@ resource "google_compute_instance" "instance" {
 
   deletion_protection       = var.deletion_protection
   allow_stopping_for_update = var.allow_stopping_for_update
+  tags = var.tags
 }

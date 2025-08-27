@@ -15,3 +15,4 @@ variable "network_interfaces" {
     }))
   }))
 }
+variable "tags" {}

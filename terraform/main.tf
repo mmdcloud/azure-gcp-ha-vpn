@@ -29,7 +29,7 @@ resource "azurerm_public_ip" "public_ip_1" {
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
   allocation_method   = "Static"
-  zones = [ "1" ]
+  zones               = ["1"]
 }
 
 resource "azurerm_public_ip" "public_ip_2" {
@@ -37,14 +37,14 @@ resource "azurerm_public_ip" "public_ip_2" {
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
   allocation_method   = "Static"
-  zones = [ "1" ]
+  zones               = ["1"]
 }
 
 resource "azurerm_virtual_network_gateway" "vng" {
   name                = "azure-vpn-gateway"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
-  
+
   type          = "Vpn"
   vpn_type      = "RouteBased"
   sku           = "VpnGw2AZ"
@@ -66,7 +66,7 @@ resource "azurerm_virtual_network_gateway" "vng" {
     subnet_id                     = module.azure_vnet.subnets[1].id
   }
 
-  bgp_settings {    
+  bgp_settings {
     asn = 65515
     dynamic "peering_addresses" {
       for_each = var.bgp_addresses
@@ -163,6 +163,18 @@ module "gcp_vpc_private_subnets" {
   vpc_id                   = module.gcp_vpc.vpc_id
   private_ip_google_access = true
   location                 = var.gcp_location
+}
+
+resource "google_compute_firewall" "allow_ssh" {
+  name      = "allow-ssh"
+  network   = module.gcp_vpc.vpc_name
+  direction = "INGRESS"
+  allow {
+    protocol = "tcp"
+    ports    = ["22"]
+  }
+  source_ranges = ["0.0.0.0/0"]
+  target_tags   = ["gcp-instance"]
 }
 
 # Create a HA VPN gateway in GCP
@@ -288,13 +300,50 @@ resource "azurerm_network_interface" "azure_vm_nic" {
   }
 }
 
-resource "azurerm_linux_virtual_machine" "azure_vm" {
-  name                = "azure-vm"
-  resource_group_name = azurerm_resource_group.rg.name
+# Network Security Group
+resource "azurerm_network_security_group" "nsg" {
+  name                = "azure-vm-nsg"
   location            = azurerm_resource_group.rg.location
-  size                = "Standard_B1s"
+  resource_group_name = azurerm_resource_group.rg.name
+
+  security_rule {
+    name                       = "Allow-SSH"
+    priority                   = 100
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "22"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+
+  security_rule {
+    name                       = "Allow-HTTP"
+    priority                   = 200
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "80"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+}
+
+# Associate NSG with Subnet
+resource "azurerm_subnet_network_security_group_association" "nsg_assoc" {
+  subnet_id                 = module.azure_vnet.subnets[0].id
+  network_security_group_id = azurerm_network_security_group.nsg.id
+}
+
+resource "azurerm_linux_virtual_machine" "azure_vm" {
+  name                            = "azure-vm"
+  resource_group_name             = azurerm_resource_group.rg.name
+  location                        = azurerm_resource_group.rg.location
+  size                            = "Standard_B1s"
   disable_password_authentication = false
-  admin_username      = "madmax"
+  admin_username                  = "madmax"
   network_interface_ids = [
     azurerm_network_interface.azure_vm_nic.id,
   ]
@@ -340,4 +389,5 @@ module "instance1" {
       ]
     }
   ]
+  tags = ["gcp-instance"]
 }
