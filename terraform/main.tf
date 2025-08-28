@@ -369,7 +369,7 @@ resource "google_compute_address" "gcp_vm_ip" {
 }
 
 # Instance 1
-module "instance1" {
+module "gcp_instance" {
   source                    = "./modules/gcp/compute"
   name                      = "gcp-instance"
   machine_type              = "e2-micro"
