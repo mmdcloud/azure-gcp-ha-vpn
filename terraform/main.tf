@@ -1,6 +1,7 @@
-# ---------------------------
+# ---------------------------------------------------------------------------------------
 # Azure Configuration
-# ---------------------------
+# ---------------------------------------------------------------------------------------
+
 resource "azurerm_resource_group" "rg" {
   name     = "azure-vpn"
   location = "centralindia"
@@ -135,46 +136,57 @@ resource "azurerm_virtual_network_gateway_connection" "connection2" {
   enable_bgp                 = true
 }
 
-# ---------------------------
+# ---------------------------------------------------------------------------------------
 # GCP Configuration
-# ---------------------------
+# ---------------------------------------------------------------------------------------
+
 # VPC Creation
+
 module "gcp_vpc" {
-  source                  = "./modules/gcp/network/vpc"
-  auto_create_subnetworks = false
-  vpc_name                = "gcp-vpc"
-  routing_mode            = "REGIONAL"
-}
-
-# Subnets Creation
-module "gcp_vpc_public_subnets" {
-  source                   = "./modules/gcp/network/subnet"
-  name                     = "vpn-public-subnet"
-  subnets                  = var.gcp_public_subnets
-  vpc_id                   = module.gcp_vpc.vpc_id
-  private_ip_google_access = false
-  location                 = var.gcp_location
-}
-
-module "gcp_vpc_private_subnets" {
-  source                   = "./modules/gcp/network/subnet"
-  name                     = "vpn-private-subnet"
-  subnets                  = var.gcp_private_subnets
-  vpc_id                   = module.gcp_vpc.vpc_id
-  private_ip_google_access = true
-  location                 = var.gcp_location
-}
-
-resource "google_compute_firewall" "allow_ssh" {
-  name      = "allow-ssh"
-  network   = module.gcp_vpc.vpc_name
-  direction = "INGRESS"
-  allow {
-    protocol = "tcp"
-    ports    = ["22"]
-  }
-  source_ranges = ["0.0.0.0/0"]
-  target_tags   = ["gcp-instance"]
+  source                          = "./modules/gcp/vpc"
+  vpc_name                        = "gcp-vpc"
+  delete_default_routes_on_create = false
+  auto_create_subnetworks         = false
+  routing_mode                    = "REGIONAL"
+  subnets = [
+    {
+      name                     = "vpn-public-subnet-1"
+      region                   = "${var.gcp_location}"
+      purpose                  = "PRIVATE"
+      role                     = "ACTIVE"
+      private_ip_google_access = true
+      ip_cidr_range            = "10.2.1.0/24"
+    },
+    {
+      name                     = "vpn-public-subnet-2"
+      region                   = "${var.gcp_location}"
+      purpose                  = "PRIVATE"
+      role                     = "ACTIVE"
+      private_ip_google_access = true
+      ip_cidr_range            = "10.2.2.0/24"
+    },
+    {
+      name                     = "vpn-public-subnet-3"
+      region                   = "${var.gcp_location}"
+      purpose                  = "PRIVATE"
+      role                     = "ACTIVE"
+      private_ip_google_access = true
+      ip_cidr_range            = "10.2.3.0/24"
+    }
+  ]
+  firewall_data = [
+    {
+      name          = "allow-ssh"
+      source_ranges = ["0.0.0.0/0"]
+      allow_list = [
+        {
+          protocol = "tcp"
+          ports    = ["22"]
+        }
+      ]
+      target_tags = ["gcp-instance"]
+    }
+  ]
 }
 
 # Create a HA VPN gateway in GCP
@@ -275,9 +287,9 @@ resource "google_compute_router_interface" "gcp_interface2" {
   vpn_tunnel = google_compute_vpn_tunnel.gcp_tunnel2.name
 }
 
-# ---------------------------
+# ---------------------------------------------------------------------------------------
 # Test Instances
-# ---------------------------
+# ---------------------------------------------------------------------------------------
 
 # Azure VM
 resource "azurerm_public_ip" "azure_vm_public_ip" {
@@ -381,7 +393,7 @@ module "gcp_instance" {
   network_interfaces = [
     {
       network    = module.gcp_vpc.vpc_id
-      subnetwork = module.gcp_vpc_public_subnets.subnets[0].id
+      subnetwork = module.gcp_vpc.subnets[0].id
       access_configs = [
         {
           nat_ip = google_compute_address.gcp_vm_ip.address

@@ -31,5 +31,4 @@ variable "gcp_project_id" {
   type        = string
   description = "GCP Project ID"
   default     = "encoded-alpha-457108-e8"
-  # Remove default for production - must be explicitly set
 }
