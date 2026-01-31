@@ -1,7 +1,6 @@
 # ---------------------------------------------------------------------------------------
 # Azure Configuration
 # ---------------------------------------------------------------------------------------
-
 resource "azurerm_resource_group" "rg" {
   name     = "azure-vpn"
   location = "centralindia"
@@ -139,9 +138,7 @@ resource "azurerm_virtual_network_gateway_connection" "connection2" {
 # ---------------------------------------------------------------------------------------
 # GCP Configuration
 # ---------------------------------------------------------------------------------------
-
 # VPC Creation
-
 module "gcp_vpc" {
   source                          = "./modules/gcp/vpc"
   vpc_name                        = "gcp-vpc"
@@ -290,7 +287,6 @@ resource "google_compute_router_interface" "gcp_interface2" {
 # ---------------------------------------------------------------------------------------
 # Test Instances
 # ---------------------------------------------------------------------------------------
-
 # Azure VM
 resource "azurerm_public_ip" "azure_vm_public_ip" {
   name                = "azure-vm-public-ip"
@@ -380,7 +376,7 @@ resource "google_compute_address" "gcp_vm_ip" {
   name = "gcp-vm-public-ip"
 }
 
-# Instance 1
+# GCP Instance
 module "gcp_instance" {
   source                    = "./modules/gcp/compute"
   name                      = "gcp-instance"
