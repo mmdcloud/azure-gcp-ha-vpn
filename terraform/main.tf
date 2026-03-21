@@ -24,115 +24,161 @@ module "azure_vnet" {
   ]
 }
 
-resource "azurerm_public_ip" "public_ip_1" {
-  name                = "azure-vm-public-ip-1"
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
-  allocation_method   = "Static"
-  zones               = ["1"]
+# resource "azurerm_public_ip" "public_ip_1" {
+#   name                = "azure-vm-public-ip-1"
+#   location            = azurerm_resource_group.rg.location
+#   resource_group_name = azurerm_resource_group.rg.name
+#   allocation_method   = "Static"
+#   zones               = ["1"]
+# }
+
+# resource "azurerm_public_ip" "public_ip_2" {
+#   name                = "azure-vm-public-ip-2"
+#   location            = azurerm_resource_group.rg.location
+#   resource_group_name = azurerm_resource_group.rg.name
+#   allocation_method   = "Static"
+#   zones               = ["1"]
+# }
+
+# resource "azurerm_virtual_network_gateway" "vng" {
+#   name                = "azure-vpn-gateway"
+#   location            = azurerm_resource_group.rg.location
+#   resource_group_name = azurerm_resource_group.rg.name
+
+#   type          = "Vpn"
+#   vpn_type      = "RouteBased"
+#   sku           = "VpnGw2AZ"
+#   generation    = "Generation2"
+#   active_active = true
+#   enable_bgp    = true
+
+#   ip_configuration {
+#     name                          = "ip-config-1"
+#     public_ip_address_id          = azurerm_public_ip.public_ip_1.id
+#     private_ip_address_allocation = "Dynamic"
+#     subnet_id                     = module.azure_vnet.subnets[1].id
+#   }
+
+#   ip_configuration {
+#     name                          = "ip-config-2"
+#     public_ip_address_id          = azurerm_public_ip.public_ip_2.id
+#     private_ip_address_allocation = "Dynamic"
+#     subnet_id                     = module.azure_vnet.subnets[1].id
+#   }
+
+#   bgp_settings {
+#     asn = 65515
+#     dynamic "peering_addresses" {
+#       for_each = var.bgp_addresses
+#       content {
+#         ip_configuration_name = peering_addresses.value.ip_configuration_name
+#         apipa_addresses       = peering_addresses.value.apipa_addresses
+#       }
+#     }
+#   }
+# }
+
+# Azure VPN Gateway with Public IPs
+module "azure_vpn_gateway" {
+  source                = "./modules/azure/vpn-gw"
+  gateway_name          = var.azure_vpn_gateway_name
+  location              = azurerm_resource_group.rg.location
+  resource_group_name   = azurerm_resource_group.rg.name
+  gateway_subnet_id     = module.azure_vnet.subnets[1].id
+  gateway_sku           = var.azure_vpn_gateway_sku
+  generation            = var.azure_vpn_gateway_generation
+  active_active         = var.azure_vpn_active_active
+  enable_bgp            = var.azure_enable_bgp
+  bgp_asn               = var.azure_bgp_asn
+  bgp_peering_addresses = var.azure_bgp_peering_addresses
+  zones                 = var.azure_availability_zones
+  tags                  = var.tags
 }
 
-resource "azurerm_public_ip" "public_ip_2" {
-  name                = "azure-vm-public-ip-2"
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
-  allocation_method   = "Static"
-  zones               = ["1"]
+# # Local Network Gateway
+# resource "azurerm_local_network_gateway" "local_gw_1" {
+#   name                = "local-gw-1"
+#   location            = azurerm_resource_group.rg.location
+#   resource_group_name = azurerm_resource_group.rg.name
+
+#   gateway_address = google_compute_ha_vpn_gateway.gcp_vpn_gateway.vpn_interfaces[0].ip_address
+
+#   bgp_settings {
+#     asn                 = 65001
+#     bgp_peering_address = "169.254.21.9"
+#   }
+
+#   tags = {
+#     environment = "production"
+#   }
+# }
+
+# resource "azurerm_local_network_gateway" "local_gw_2" {
+#   name                = "local-gw-2"
+#   location            = azurerm_resource_group.rg.location
+#   resource_group_name = azurerm_resource_group.rg.name
+
+#   gateway_address = google_compute_ha_vpn_gateway.gcp_vpn_gateway.vpn_interfaces[1].ip_address
+
+#   bgp_settings {
+#     asn                 = 65001
+#     bgp_peering_address = "169.254.21.13"
+#   }
+
+#   tags = {
+#     environment = "production"
+#   }
+# }
+
+# Azure Local Network Gateways (representing GCP side)
+module "azure_local_gateways" {
+  source                = "./modules/azure/local-gw"
+  gateway_name_prefix   = "azure-local-gw"
+  location              = azurerm_resource_group.rg.location
+  resource_group_name   = azurerm_resource_group.rg.name
+  gateway_addresses     = module.gcp_ha_vpn.vpn_interfaces[*].ip_address
+  enable_bgp            = var.azure_enable_bgp
+  bgp_asn               = var.gcp_bgp_asn
+  bgp_peering_addresses = var.gcp_bgp_peering_addresses
+  tags                  = var.tags
+
+  depends_on = [module.gcp_ha_vpn]
 }
 
-resource "azurerm_virtual_network_gateway" "vng" {
-  name                = "azure-vpn-gateway"
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
+# resource "azurerm_virtual_network_gateway_connection" "connection1" {
+#   name                       = "connection1"
+#   location                   = azurerm_resource_group.rg.location
+#   resource_group_name        = azurerm_resource_group.rg.name
+#   type                       = "IPsec"
+#   virtual_network_gateway_id = azurerm_virtual_network_gateway.vng.id
+#   local_network_gateway_id   = azurerm_local_network_gateway.local_gw_1.id
+#   shared_key                 = "Mohitdixit12345!"
+#   enable_bgp                 = true
+# }
 
-  type          = "Vpn"
-  vpn_type      = "RouteBased"
-  sku           = "VpnGw2AZ"
-  generation    = "Generation2"
-  active_active = true
-  enable_bgp    = true
+# resource "azurerm_virtual_network_gateway_connection" "connection2" {
+#   name                       = "connection2"
+#   location                   = azurerm_resource_group.rg.location
+#   resource_group_name        = azurerm_resource_group.rg.name
+#   type                       = "IPsec"
+#   virtual_network_gateway_id = azurerm_virtual_network_gateway.vng.id
+#   local_network_gateway_id   = azurerm_local_network_gateway.local_gw_2.id
+#   shared_key                 = "Mohitdixit12345!"
+#   enable_bgp                 = true
+# }
 
-  ip_configuration {
-    name                          = "ip-config-1"
-    public_ip_address_id          = azurerm_public_ip.public_ip_1.id
-    private_ip_address_allocation = "Dynamic"
-    subnet_id                     = module.azure_vnet.subnets[1].id
-  }
-
-  ip_configuration {
-    name                          = "ip-config-2"
-    public_ip_address_id          = azurerm_public_ip.public_ip_2.id
-    private_ip_address_allocation = "Dynamic"
-    subnet_id                     = module.azure_vnet.subnets[1].id
-  }
-
-  bgp_settings {
-    asn = 65515
-    dynamic "peering_addresses" {
-      for_each = var.bgp_addresses
-      content {
-        ip_configuration_name = peering_addresses.value.ip_configuration_name
-        apipa_addresses       = peering_addresses.value.apipa_addresses
-      }
-    }
-  }
-}
-
-# Local Network Gateway
-resource "azurerm_local_network_gateway" "local_gw_1" {
-  name                = "local-gw-1"
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
-
-  gateway_address = google_compute_ha_vpn_gateway.gcp_vpn_gateway.vpn_interfaces[0].ip_address
-
-  bgp_settings {
-    asn                 = 65001
-    bgp_peering_address = "169.254.21.9"
-  }
-
-  tags = {
-    environment = "production"
-  }
-}
-
-resource "azurerm_local_network_gateway" "local_gw_2" {
-  name                = "local-gw-2"
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
-
-  gateway_address = google_compute_ha_vpn_gateway.gcp_vpn_gateway.vpn_interfaces[1].ip_address
-
-  bgp_settings {
-    asn                 = 65001
-    bgp_peering_address = "169.254.21.13"
-  }
-
-  tags = {
-    environment = "production"
-  }
-}
-
-resource "azurerm_virtual_network_gateway_connection" "connection1" {
-  name                       = "connection1"
+# Azure VPN Connections
+module "azure_vpn_connections" {
+  source                     = "./modules/azure/vpn-connection"
+  connection_name_prefix     = "azure-to-gcp-connection"
   location                   = azurerm_resource_group.rg.location
   resource_group_name        = azurerm_resource_group.rg.name
-  type                       = "IPsec"
-  virtual_network_gateway_id = azurerm_virtual_network_gateway.vng.id
-  local_network_gateway_id   = azurerm_local_network_gateway.local_gw_1.id
-  shared_key                 = "Mohitdixit12345!"
-  enable_bgp                 = true
-}
-
-resource "azurerm_virtual_network_gateway_connection" "connection2" {
-  name                       = "connection2"
-  location                   = azurerm_resource_group.rg.location
-  resource_group_name        = azurerm_resource_group.rg.name
-  type                       = "IPsec"
-  virtual_network_gateway_id = azurerm_virtual_network_gateway.vng.id
-  local_network_gateway_id   = azurerm_local_network_gateway.local_gw_2.id
-  shared_key                 = "Mohitdixit12345!"
-  enable_bgp                 = true
+  virtual_network_gateway_id = module.azure_vpn_gateway.gateway_id
+  local_network_gateway_ids  = module.azure_local_gateways.local_gateway_ids
+  shared_key                 = var.vpn_shared_key
+  enable_bgp                 = var.azure_enable_bgp
+  custom_ipsec_policy        = var.custom_ipsec_policy
+  tags                       = var.tags
 }
 
 # ---------------------------------------------------------------------------------------
@@ -187,188 +233,260 @@ module "gcp_vpc" {
 }
 
 # Create a HA VPN gateway in GCP
-resource "google_compute_ha_vpn_gateway" "gcp_vpn_gateway" {
-  name               = "gcp-vpn-gateway"
-  network            = module.gcp_vpc.vpc_id
-  gateway_ip_version = "IPV4"
-  region             = var.gcp_location
+# resource "google_compute_ha_vpn_gateway" "gcp_vpn_gateway" {
+#   name               = "gcp-vpn-gateway"
+#   network            = module.gcp_vpc.vpc_id
+#   gateway_ip_version = "IPV4"
+#   region             = var.gcp_location
+# }
+
+# GCP HA VPN Gateway with Tunnels
+module "gcp_ha_vpn" {
+  source                   = "./modules/gcp/vpn-gw"
+  gateway_name             = var.gcp_ha_vpn_gateway_name
+  vpc_id                   = module.gcp_vpc.vpc_id
+  region                   = var.gcp_region
+  gateway_ip_version       = var.gcp_gateway_ip_version
+  peer_external_gateway_id = module.gcp_external_gateway.gateway_id
+  router_id                = module.gcp_router.router_id
+  ike_version              = var.gcp_ike_version
+  shared_secret            = var.vpn_shared_key
+  tunnel_configs           = var.gcp_tunnel_configs
+
+  depends_on = [module.gcp_external_gateway, module.gcp_router]
 }
 
 # Create a cloud router for BGP (optional)
-resource "google_compute_router" "gcp_router" {
-  name    = "gcp-vpn-router"
-  network = module.gcp_vpc.vpc_id
-  region  = var.gcp_location
+# resource "google_compute_router" "gcp_router" {
+#   name    = "gcp-vpn-router"
+#   network = module.gcp_vpc.vpc_id
+#   region  = var.gcp_location
 
-  bgp {
-    advertise_mode    = "CUSTOM"
-    advertised_groups = ["ALL_SUBNETS"]
-    asn               = 65001
-  }
-}
+#   bgp {
+#     advertise_mode    = "CUSTOM"
+#     advertised_groups = ["ALL_SUBNETS"]
+#     asn               = 65001
+#   }
+# }
 
 # Create external VPN gateway representing the AWS side
-resource "google_compute_external_vpn_gateway" "azure_vpn_gateway" {
-  name            = "azure-vpn-gateway"
-  redundancy_type = "TWO_IPS_REDUNDANCY"
-  description     = "Azure VPN Gateway"
-  interface {
-    id         = 0
-    ip_address = azurerm_public_ip.public_ip_1.ip_address
-  }
-  interface {
-    id         = 1
-    ip_address = azurerm_public_ip.public_ip_2.ip_address
-  }
-}
+# resource "google_compute_external_vpn_gateway" "azure_vpn_gateway" {
+#   name            = "azure-vpn-gateway"
+#   redundancy_type = "TWO_IPS_REDUNDANCY"
+#   description     = "Azure VPN Gateway"
+#   interface {
+#     id         = 0
+#     ip_address = azurerm_public_ip.public_ip_1.ip_address
+#   }
+#   interface {
+#     id         = 1
+#     ip_address = azurerm_public_ip.public_ip_2.ip_address
+#   }
+# }
 
-# Create VPN tunnels on GCP side
-resource "google_compute_vpn_tunnel" "gcp_tunnel1" {
-  name                            = "gcp-tunnel1"
-  region                          = var.gcp_location
-  vpn_gateway                     = google_compute_ha_vpn_gateway.gcp_vpn_gateway.id
-  peer_external_gateway           = google_compute_external_vpn_gateway.azure_vpn_gateway.id
-  vpn_gateway_interface           = 0
-  peer_external_gateway_interface = 0
-  ike_version                     = 2
-  shared_secret                   = azurerm_virtual_network_gateway_connection.connection1.shared_key
-  router                          = google_compute_router.gcp_router.id
-}
+# # Create VPN tunnels on GCP side
+# resource "google_compute_vpn_tunnel" "gcp_tunnel1" {
+#   name                            = "gcp-tunnel1"
+#   region                          = var.gcp_location
+#   vpn_gateway                     = google_compute_ha_vpn_gateway.gcp_vpn_gateway.id
+#   peer_external_gateway           = google_compute_external_vpn_gateway.azure_vpn_gateway.id
+#   vpn_gateway_interface           = 0
+#   peer_external_gateway_interface = 0
+#   ike_version                     = 2
+#   shared_secret                   = azurerm_virtual_network_gateway_connection.connection1.shared_key
+#   router                          = google_compute_router.gcp_router.id
+# }
 
-resource "google_compute_vpn_tunnel" "gcp_tunnel2" {
-  name                            = "gcp-tunnel2"
-  region                          = var.gcp_location
-  vpn_gateway                     = google_compute_ha_vpn_gateway.gcp_vpn_gateway.id
-  peer_external_gateway           = google_compute_external_vpn_gateway.azure_vpn_gateway.id
-  vpn_gateway_interface           = 1
-  peer_external_gateway_interface = 1
-  ike_version                     = 2
-  shared_secret                   = azurerm_virtual_network_gateway_connection.connection2.shared_key
-  router                          = google_compute_router.gcp_router.id
+# resource "google_compute_vpn_tunnel" "gcp_tunnel2" {
+#   name                            = "gcp-tunnel2"
+#   region                          = var.gcp_location
+#   vpn_gateway                     = google_compute_ha_vpn_gateway.gcp_vpn_gateway.id
+#   peer_external_gateway           = google_compute_external_vpn_gateway.azure_vpn_gateway.id
+#   vpn_gateway_interface           = 1
+#   peer_external_gateway_interface = 1
+#   ike_version                     = 2
+#   shared_secret                   = azurerm_virtual_network_gateway_connection.connection2.shared_key
+#   router                          = google_compute_router.gcp_router.id
+# }
+
+# GCP External VPN Gateway (representing Azure side)
+module "gcp_external_gateway" {
+  source          = "./modules/gcp/external-vpn-gw"
+  gateway_name    = var.gcp_external_gateway_name
+  redundancy_type = var.gcp_external_gateway_redundancy_type
+  description     = var.gcp_external_gateway_description
+  interfaces = [
+    {
+      id         = 0
+      ip_address = module.azure_vpn_gateway.public_ip_addresses[0]
+    },
+    {
+      id         = 1
+      ip_address = module.azure_vpn_gateway.public_ip_addresses[1]
+    }
+  ]
+
+  depends_on = [module.azure_vpn_gateway]
 }
 
 # Create BGP sessions (optional)
-resource "google_compute_router_peer" "gcp_bgp_peer1" {
-  name            = "gcp-bgp-peer1"
-  router          = google_compute_router.gcp_router.name
-  region          = var.gcp_location
-  peer_ip_address = "169.254.21.10"
-  peer_asn        = 65515
-  # advertised_route_priority = 100
-  interface = google_compute_router_interface.gcp_interface1.name
-}
+# resource "google_compute_router_peer" "gcp_bgp_peer1" {
+#   name            = "gcp-bgp-peer1"
+#   router          = google_compute_router.gcp_router.name
+#   region          = var.gcp_location
+#   peer_ip_address = "169.254.21.10"
+#   peer_asn        = 65515
+#   # advertised_route_priority = 100
+#   interface = google_compute_router_interface.gcp_interface1.name
+# }
 
-resource "google_compute_router_peer" "gcp_bgp_peer2" {
-  name            = "gcp-bgp-peer2"
-  router          = google_compute_router.gcp_router.name
-  region          = var.gcp_location
-  peer_ip_address = "169.254.21.14"
-  peer_asn        = 65515
-  # advertised_route_priority = 100
-  interface = google_compute_router_interface.gcp_interface2.name
-}
+# resource "google_compute_router_peer" "gcp_bgp_peer2" {
+#   name            = "gcp-bgp-peer2"
+#   router          = google_compute_router.gcp_router.name
+#   region          = var.gcp_location
+#   peer_ip_address = "169.254.21.14"
+#   peer_asn        = 65515
+#   # advertised_route_priority = 100
+#   interface = google_compute_router_interface.gcp_interface2.name
+# }
 
-resource "google_compute_router_interface" "gcp_interface1" {
-  name       = "gcp-interface1"
-  router     = google_compute_router.gcp_router.name
-  region     = var.gcp_location
-  ip_range   = "169.254.21.9/30"
-  vpn_tunnel = google_compute_vpn_tunnel.gcp_tunnel1.name
-}
+# resource "google_compute_router_interface" "gcp_interface1" {
+#   name       = "gcp-interface1"
+#   router     = google_compute_router.gcp_router.name
+#   region     = var.gcp_location
+#   ip_range   = "169.254.21.9/30"
+#   vpn_tunnel = google_compute_vpn_tunnel.gcp_tunnel1.name
+# }
 
-resource "google_compute_router_interface" "gcp_interface2" {
-  name       = "gcp-interface2"
-  router     = google_compute_router.gcp_router.name
-  region     = var.gcp_location
-  ip_range   = "169.254.21.13/30"
-  vpn_tunnel = google_compute_vpn_tunnel.gcp_tunnel2.name
+# resource "google_compute_router_interface" "gcp_interface2" {
+#   name       = "gcp-interface2"
+#   router     = google_compute_router.gcp_router.name
+#   region     = var.gcp_location
+#   ip_range   = "169.254.21.13/30"
+#   vpn_tunnel = google_compute_vpn_tunnel.gcp_tunnel2.name
+# }
+
+# GCP Cloud Router for BGP
+module "gcp_router" {
+  source                   = "./modules/gcp/cloud-router"
+  router_name              = var.gcp_router_name
+  vpc_id                   = module.gcp_vpc.vpc_id
+  region                   = var.gcp_region
+  bgp_asn                  = var.gcp_bgp_asn
+  bgp_advertise_mode       = var.gcp_bgp_advertise_mode
+  bgp_advertised_groups    = var.gcp_bgp_advertised_groups
+  bgp_advertised_ip_ranges = var.gcp_bgp_advertised_ip_ranges
+  router_interfaces        = var.gcp_router_interfaces
+  bgp_peers                = var.gcp_bgp_peers
 }
 
 # ---------------------------------------------------------------------------------------
 # Test Instances
 # ---------------------------------------------------------------------------------------
 # Azure VM
-resource "azurerm_public_ip" "azure_vm_public_ip" {
-  name                = "azure-vm-public-ip"
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
-  allocation_method   = "Static"
-}
+# resource "azurerm_public_ip" "azure_vm_public_ip" {
+#   name                = "azure-vm-public-ip"
+#   location            = azurerm_resource_group.rg.location
+#   resource_group_name = azurerm_resource_group.rg.name
+#   allocation_method   = "Static"
+# }
 
-resource "azurerm_network_interface" "azure_vm_nic" {
-  name                = "azure-vm-nic"
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
+# resource "azurerm_network_interface" "azure_vm_nic" {
+#   name                = "azure-vm-nic"
+#   location            = azurerm_resource_group.rg.location
+#   resource_group_name = azurerm_resource_group.rg.name
 
-  ip_configuration {
-    name                          = "internal"
-    subnet_id                     = module.azure_vnet.subnets[0].id
-    private_ip_address_allocation = "Dynamic"
-    public_ip_address_id          = azurerm_public_ip.azure_vm_public_ip.id
-  }
-}
+#   ip_configuration {
+#     name                          = "internal"
+#     subnet_id                     = module.azure_vnet.subnets[0].id
+#     private_ip_address_allocation = "Dynamic"
+#     public_ip_address_id          = azurerm_public_ip.azure_vm_public_ip.id
+#   }
+# }
 
-# Network Security Group
-resource "azurerm_network_security_group" "nsg" {
-  name                = "azure-vm-nsg"
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
+# # Network Security Group
+# resource "azurerm_network_security_group" "nsg" {
+#   name                = "azure-vm-nsg"
+#   location            = azurerm_resource_group.rg.location
+#   resource_group_name = azurerm_resource_group.rg.name
 
-  security_rule {
-    name                       = "Allow-SSH"
-    priority                   = 100
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "Tcp"
-    source_port_range          = "*"
-    destination_port_range     = "22"
-    source_address_prefix      = "*"
-    destination_address_prefix = "*"
-  }
+#   security_rule {
+#     name                       = "Allow-SSH"
+#     priority                   = 100
+#     direction                  = "Inbound"
+#     access                     = "Allow"
+#     protocol                   = "Tcp"
+#     source_port_range          = "*"
+#     destination_port_range     = "22"
+#     source_address_prefix      = "*"
+#     destination_address_prefix = "*"
+#   }
 
-  security_rule {
-    name                       = "Allow-HTTP"
-    priority                   = 200
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "Tcp"
-    source_port_range          = "*"
-    destination_port_range     = "80"
-    source_address_prefix      = "*"
-    destination_address_prefix = "*"
-  }
-}
+#   security_rule {
+#     name                       = "Allow-HTTP"
+#     priority                   = 200
+#     direction                  = "Inbound"
+#     access                     = "Allow"
+#     protocol                   = "Tcp"
+#     source_port_range          = "*"
+#     destination_port_range     = "80"
+#     source_address_prefix      = "*"
+#     destination_address_prefix = "*"
+#   }
+# }
 
-# Associate NSG with Subnet
-resource "azurerm_subnet_network_security_group_association" "nsg_assoc" {
-  subnet_id                 = module.azure_vnet.subnets[0].id
-  network_security_group_id = azurerm_network_security_group.nsg.id
-}
+# # Associate NSG with Subnet
+# resource "azurerm_subnet_network_security_group_association" "nsg_assoc" {
+#   subnet_id                 = module.azure_vnet.subnets[0].id
+#   network_security_group_id = azurerm_network_security_group.nsg.id
+# }
 
-resource "azurerm_linux_virtual_machine" "azure_vm" {
-  name                            = "azure-vm"
-  resource_group_name             = azurerm_resource_group.rg.name
+# resource "azurerm_linux_virtual_machine" "azure_vm" {
+#   name                            = "azure-vm"
+#   resource_group_name             = azurerm_resource_group.rg.name
+#   location                        = azurerm_resource_group.rg.location
+#   size                            = "Standard_B1s"
+#   disable_password_authentication = false
+#   admin_username                  = "madmax"
+#   network_interface_ids = [
+#     azurerm_network_interface.azure_vm_nic.id,
+#   ]
+
+#   admin_password = "Mohitdixit12345!"
+
+#   os_disk {
+#     caching              = "ReadWrite"
+#     storage_account_type = "Standard_LRS"
+#   }
+
+#   source_image_reference {
+#     publisher = "Canonical"
+#     offer     = "UbuntuServer"
+#     sku       = "18.04-LTS"
+#     version   = "latest"
+#   }
+# }
+
+# Azure Test VM
+module "azure_test_vm" {
+  source                          = "./modules/azure/vm"
+  vm_name                         = var.azure_vm_name
   location                        = azurerm_resource_group.rg.location
-  size                            = "Standard_B1s"
+  resource_group_name             = azurerm_resource_group.rg.name
+  subnet_id                       = module.azure_vnet.subnets[0].id # Default subnet
+  vm_size                         = var.azure_vm_size
+  admin_username                  = var.azure_vm_admin_username
+  admin_password                  = var.azure_vm_admin_password
   disable_password_authentication = false
-  admin_username                  = "madmax"
-  network_interface_ids = [
-    azurerm_network_interface.azure_vm_nic.id,
-  ]
-
-  admin_password = "Mohitdixit12345!"
-
-  os_disk {
-    caching              = "ReadWrite"
-    storage_account_type = "Standard_LRS"
-  }
-
-  source_image_reference {
-    publisher = "Canonical"
-    offer     = "UbuntuServer"
-    sku       = "18.04-LTS"
-    version   = "latest"
-  }
+  create_public_ip                = true
+  create_nsg                      = true
+  associate_nsg_to_subnet         = true
+  nsg_rules                       = var.azure_vm_nsg_rules
+  image_publisher                 = var.azure_vm_image_publisher
+  image_offer                     = var.azure_vm_image_offer
+  image_sku                       = var.azure_vm_image_sku
+  image_version                   = var.azure_vm_image_version
+  tags                            = var.tags
 }
 
 # GCP VM
